@@ -2,6 +2,7 @@
 #include "../views.h"
 
 enum HidSubmenuIndex {
+    HidSubmenuIndexReveal,
     HidSubmenuIndexKeynote,
     HidSubmenuIndexKeynoteVertical,
     HidSubmenuIndexKeyboard,
@@ -26,6 +27,8 @@ static void hid_scene_start_submenu_callback(void* context, uint32_t index) {
 
 void hid_scene_start_on_enter(void* context) {
     Hid* app = context;
+    submenu_add_item(
+        app->submenu, "Reveal", HidSubmenuIndexReveal, hid_scene_start_submenu_callback, app);
     submenu_add_item(
         app->submenu, "Keynote", HidSubmenuIndexKeynote, hid_scene_start_submenu_callback, app);
     submenu_add_item(
@@ -105,6 +108,10 @@ bool hid_scene_start_on_event(void* context, SceneManagerEvent event) {
             HidView view_id;
 
             switch(event.event) {
+            case HidSubmenuIndexReveal:
+                view_id = HidViewReveal;
+                    hid_reveal_set_orientation(app->hid_reveal, true);
+                break;
             case HidSubmenuIndexKeynote:
                 view_id = HidViewKeynote;
                 hid_keynote_set_orientation(app->hid_keynote, false);
