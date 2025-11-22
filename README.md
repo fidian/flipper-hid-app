@@ -4,6 +4,11 @@ This is a standalone version of the HID app Momentum. Thankfully, that project i
 
 ## Functionality
 
+![Reveal.js](screenshots/reveal.png)
+
+Reveal - Remote for presentations with Reveal.js
+
+Uses Keynote Vertical and adds functionality for full screen 'F', blackout '.' and overview 'esc'.
 
 ![Keynote](screenshots/keynote.png)
 

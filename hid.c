@@ -98,6 +98,11 @@ Hid* hid_alloc() {
     view_dispatcher_add_view(
         app->view_dispatcher, HidViewKeynote, hid_keynote_get_view(app->hid_keynote));
 
+    // Reveal view
+    app->hid_reveal = hid_reveal_alloc(app);
+    view_dispatcher_add_view(
+        app->view_dispatcher, HidViewReveal, hid_reveal_get_view(app->hid_reveal));
+
     // Keyboard view
     app->hid_keyboard = hid_keyboard_alloc(app);
     view_dispatcher_add_view(
@@ -181,6 +186,8 @@ void hid_free(Hid* app) {
     popup_free(app->popup);
     view_dispatcher_remove_view(app->view_dispatcher, HidViewKeynote);
     hid_keynote_free(app->hid_keynote);
+    view_dispatcher_remove_view(app->view_dispatcher, HidViewReveal);
+    hid_reveal_free(app->hid_reveal);
     view_dispatcher_remove_view(app->view_dispatcher, HidViewKeyboard);
     hid_keyboard_free(app->hid_keyboard);
     view_dispatcher_remove_view(app->view_dispatcher, HidViewNumpad);

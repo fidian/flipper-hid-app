@@ -19,6 +19,7 @@
 #include <gui/modules/dialog_ex.h>
 #include <gui/modules/popup.h>
 #include "views/hid_keynote.h"
+#include "views/hid_reveal.h"
 #include "views/hid_keyboard.h"
 #include "views/hid_numpad.h"
 #include "views/hid_media.h"
@@ -49,6 +50,7 @@ struct Hid {
     DialogEx* dialog;
     Popup* popup;
     HidKeynote* hid_keynote;
+    HidReveal* hid_reveal;
     HidKeyboard* hid_keyboard;
     HidNumpad* hid_numpad;
     HidMedia* hid_media;
