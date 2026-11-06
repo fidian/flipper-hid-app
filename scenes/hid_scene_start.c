@@ -7,6 +7,7 @@ enum HidSubmenuIndex {
     HidSubmenuIndexKeyboard,
     HidSubmenuIndexNumpad,
     HidSubmenuIndexMedia,
+    HidSubmenuIndexMediaAndroid,
     HidSubmenuIndexMusicMacOs,
     HidSubmenuIndexMovie,
     HidSubmenuIndexTikTok,
@@ -40,6 +41,12 @@ void hid_scene_start_on_enter(void* context) {
         app->submenu, "Numpad", HidSubmenuIndexNumpad, hid_scene_start_submenu_callback, app);
     submenu_add_item(
         app->submenu, "Media", HidSubmenuIndexMedia, hid_scene_start_submenu_callback, app);
+    submenu_add_item(
+        app->submenu,
+        "Media (Android)",
+        HidSubmenuIndexMediaAndroid,
+        hid_scene_start_submenu_callback,
+        app);
     submenu_add_item(
         app->submenu,
         "Apple Music macOS",
@@ -121,6 +128,11 @@ bool hid_scene_start_on_event(void* context, SceneManagerEvent event) {
                 break;
             case HidSubmenuIndexMedia:
                 view_id = HidViewMedia;
+                hid_media_set_android_mode(app->hid_media, false);
+                break;
+            case HidSubmenuIndexMediaAndroid:
+                view_id = HidViewMedia;
+                hid_media_set_android_mode(app->hid_media, true);
                 break;
             case HidSubmenuIndexMusicMacOs:
                 view_id = HidViewMusicMacOs;
