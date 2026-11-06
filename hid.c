@@ -7,6 +7,11 @@
 
 #define TAG "HidApp"
 
+static BleProfileHidParams hid_ble_profile_params = {
+    .device_name_prefix = "Remote",
+    .mac_xor = 0x4844,
+};
+
 bool hid_custom_event_callback(void* context, uint32_t event) {
     furi_assert(context);
     Hid* app = context;
@@ -236,6 +241,9 @@ int32_t hid_usb_app(void* p) {
 
     view_dispatcher_run(app->view_dispatcher);
 
+    // Run view exit callbacks while the HID transport is still available.
+    view_dispatcher_switch_to_view(app->view_dispatcher, VIEW_NONE);
+
     furi_hal_usb_set_config(usb_mode_prev, NULL);
 
     hid_free(app);
@@ -266,7 +274,7 @@ int32_t hid_ble_app(void* p) {
 
     furi_record_close(RECORD_STORAGE);
 
-    app->ble_hid_profile = bt_profile_start(app->bt, ble_profile_hid, NULL);
+    app->ble_hid_profile = bt_profile_start(app->bt, ble_profile_hid, &hid_ble_profile_params);
 
     furi_check(app->ble_hid_profile);
 
@@ -278,6 +286,9 @@ int32_t hid_ble_app(void* p) {
     scene_manager_next_scene(app->scene_manager, HidSceneStart);
 
     view_dispatcher_run(app->view_dispatcher);
+
+    // Release pressed keys before restoring the default Bluetooth profile.
+    view_dispatcher_switch_to_view(app->view_dispatcher, VIEW_NONE);
 
     bt_set_status_changed_callback(app->bt, NULL, NULL);
 

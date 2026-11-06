@@ -22,6 +22,7 @@ typedef struct {
     bool ok_pressed;
     bool connected;
     bool back_pressed;
+    bool android_mode;
 } HidMediaModel;
 
 static void hid_media_draw_arrow(Canvas* canvas, uint8_t x, uint8_t y, CanvasDirection dir) {
@@ -53,6 +54,9 @@ static void hid_media_draw_callback(Canvas* canvas, void* context) {
     canvas_set_font(canvas, FontPrimary);
     elements_multiline_text_aligned(canvas, 17, 3, AlignLeft, AlignTop, "Media");
     canvas_set_font(canvas, FontSecondary);
+    if(model->android_mode) {
+        elements_multiline_text_aligned(canvas, 0, 25, AlignLeft, AlignTop, "Android");
+    }
 
     // Keypad circles
     canvas_draw_icon(canvas, 58, 3, &I_OutCircles_70x51);
@@ -86,7 +90,7 @@ static void hid_media_draw_callback(Canvas* canvas, void* context) {
     }
     hid_media_draw_arrow(canvas, 67, 28, CanvasDirectionRightToLeft);
     hid_media_draw_arrow(canvas, 70, 28, CanvasDirectionRightToLeft);
-    canvas_draw_line(canvas, 64, 26, 64, 30);
+    if(!model->android_mode) canvas_draw_line(canvas, 64, 26, 64, 30);
     canvas_set_color(canvas, ColorBlack);
 
     // Right
@@ -98,7 +102,7 @@ static void hid_media_draw_callback(Canvas* canvas, void* context) {
     }
     hid_media_draw_arrow(canvas, 96, 28, CanvasDirectionLeftToRight);
     hid_media_draw_arrow(canvas, 99, 28, CanvasDirectionLeftToRight);
-    canvas_draw_line(canvas, 102, 26, 102, 30);
+    if(!model->android_mode) canvas_draw_line(canvas, 102, 26, 102, 30);
     canvas_set_color(canvas, ColorBlack);
 
     // Ok
@@ -128,77 +132,93 @@ static void hid_media_draw_callback(Canvas* canvas, void* context) {
     elements_multiline_text_aligned(canvas, 13, 62, AlignLeft, AlignBottom, "Hold to exit");
 }
 
-static void hid_media_process_press(HidMedia* hid_media, InputEvent* event) {
-    with_view_model(
-        hid_media->view,
-        HidMediaModel * model,
-        {
-            if(event->key == InputKeyUp) {
-                model->up_pressed = true;
-                hid_hal_consumer_key_press(hid_media->hid, HID_CONSUMER_VOLUME_INCREMENT);
-            } else if(event->key == InputKeyDown) {
-                model->down_pressed = true;
-                hid_hal_consumer_key_press(hid_media->hid, HID_CONSUMER_VOLUME_DECREMENT);
-            } else if(event->key == InputKeyLeft) {
-                model->left_pressed = true;
-                hid_hal_consumer_key_press(hid_media->hid, HID_CONSUMER_SCAN_PREVIOUS_TRACK);
-            } else if(event->key == InputKeyRight) {
-                model->right_pressed = true;
-                hid_hal_consumer_key_press(hid_media->hid, HID_CONSUMER_SCAN_NEXT_TRACK);
-            } else if(event->key == InputKeyOk) {
-                model->ok_pressed = true;
-                hid_hal_consumer_key_press(hid_media->hid, HID_CONSUMER_PLAY_PAUSE);
-            } else if(event->key == InputKeyBack) {
-                model->back_pressed = true;
-            }
-        },
-        true);
+static uint16_t hid_media_get_usage(InputKey key, bool android_mode) {
+    // Android compatibility mode uses keyboard volume (0x80/0x81) and arrows.
+    // Play/pause always uses the Consumer Control report.
+    switch(key) {
+    case InputKeyUp:
+        return android_mode ? HID_KEYBOARD_VOLUME_UP : HID_CONSUMER_VOLUME_INCREMENT;
+    case InputKeyDown:
+        return android_mode ? HID_KEYBOARD_VOLUME_DOWN : HID_CONSUMER_VOLUME_DECREMENT;
+    case InputKeyLeft:
+        return android_mode ? HID_KEYBOARD_LEFT_ARROW : HID_CONSUMER_SCAN_PREVIOUS_TRACK;
+    case InputKeyRight:
+        return android_mode ? HID_KEYBOARD_RIGHT_ARROW : HID_CONSUMER_SCAN_NEXT_TRACK;
+    case InputKeyOk:
+        return HID_CONSUMER_PLAY_PAUSE;
+    default:
+        return 0;
+    }
 }
 
-static void hid_media_process_release(HidMedia* hid_media, InputEvent* event) {
+static void hid_media_process_key(HidMedia* hid_media, InputKey key, bool pressed) {
+    bool android_mode = false;
     with_view_model(
         hid_media->view,
         HidMediaModel * model,
         {
-            if(event->key == InputKeyUp) {
-                model->up_pressed = false;
-                hid_hal_consumer_key_release(hid_media->hid, HID_CONSUMER_VOLUME_INCREMENT);
-            } else if(event->key == InputKeyDown) {
-                model->down_pressed = false;
-                hid_hal_consumer_key_release(hid_media->hid, HID_CONSUMER_VOLUME_DECREMENT);
-            } else if(event->key == InputKeyLeft) {
-                model->left_pressed = false;
-                hid_hal_consumer_key_release(hid_media->hid, HID_CONSUMER_SCAN_PREVIOUS_TRACK);
-            } else if(event->key == InputKeyRight) {
-                model->right_pressed = false;
-                hid_hal_consumer_key_release(hid_media->hid, HID_CONSUMER_SCAN_NEXT_TRACK);
-            } else if(event->key == InputKeyOk) {
-                model->ok_pressed = false;
-                hid_hal_consumer_key_release(hid_media->hid, HID_CONSUMER_PLAY_PAUSE);
-            } else if(event->key == InputKeyBack) {
-                model->back_pressed = false;
+            if(key == InputKeyUp) {
+                model->up_pressed = pressed;
+            } else if(key == InputKeyDown) {
+                model->down_pressed = pressed;
+            } else if(key == InputKeyLeft) {
+                model->left_pressed = pressed;
+            } else if(key == InputKeyRight) {
+                model->right_pressed = pressed;
+            } else if(key == InputKeyOk) {
+                model->ok_pressed = pressed;
+            } else if(key == InputKeyBack) {
+                model->back_pressed = pressed;
             }
+            android_mode = model->android_mode;
         },
         true);
+    uint16_t usage = hid_media_get_usage(key, android_mode);
+    if(!usage) return;
+    if(android_mode && key != InputKeyOk) {
+        if(pressed) {
+            hid_hal_keyboard_press(hid_media->hid, usage);
+        } else {
+            hid_hal_keyboard_release(hid_media->hid, usage);
+        }
+    } else if(pressed) {
+        hid_hal_consumer_key_press(hid_media->hid, usage);
+    } else {
+        hid_hal_consumer_key_release(hid_media->hid, usage);
+    }
+}
+
+static void hid_media_exit_callback(void* context) {
+    HidMedia* hid_media = context;
+    hid_hal_keyboard_release_all(hid_media->hid);
+    hid_hal_consumer_key_release_all(hid_media->hid);
+    with_view_model(
+        hid_media->view,
+        HidMediaModel * model,
+        {
+            model->up_pressed = false;
+            model->down_pressed = false;
+            model->left_pressed = false;
+            model->right_pressed = false;
+            model->ok_pressed = false;
+            model->back_pressed = false;
+        },
+        false);
 }
 
 static bool hid_media_input_callback(InputEvent* event, void* context) {
     furi_assert(context);
     HidMedia* hid_media = context;
-    bool consumed = false;
-
     if(event->type == InputTypeLong && event->key == InputKeyBack) {
-        hid_hal_keyboard_release_all(hid_media->hid);
-    } else {
-        consumed = true;
-        if(event->type == InputTypePress) {
-            hid_media_process_press(hid_media, event);
-        } else if(event->type == InputTypeRelease) {
-            hid_media_process_release(hid_media, event);
-        }
+        // The exit callback releases both report types before leaving the view.
+        return false;
     }
-
-    return consumed;
+    if(event->type == InputTypePress) {
+        hid_media_process_key(hid_media, event->key, true);
+    } else if(event->type == InputTypeRelease) {
+        hid_media_process_key(hid_media, event->key, false);
+    }
+    return true;
 }
 
 HidMedia* hid_media_alloc(Hid* hid) {
@@ -209,6 +229,7 @@ HidMedia* hid_media_alloc(Hid* hid) {
     view_allocate_model(hid_media->view, ViewModelTypeLocking, sizeof(HidMediaModel));
     view_set_draw_callback(hid_media->view, hid_media_draw_callback);
     view_set_input_callback(hid_media->view, hid_media_input_callback);
+    view_set_exit_callback(hid_media->view, hid_media_exit_callback);
     return hid_media;
 }
 
@@ -227,4 +248,10 @@ void hid_media_set_connected_status(HidMedia* hid_media, bool connected) {
     furi_assert(hid_media);
     with_view_model(
         hid_media->view, HidMediaModel * model, { model->connected = connected; }, true);
+}
+
+void hid_media_set_android_mode(HidMedia* hid_media, bool android_mode) {
+    furi_assert(hid_media);
+    with_view_model(
+        hid_media->view, HidMediaModel * model, { model->android_mode = android_mode; }, true);
 }

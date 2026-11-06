@@ -34,7 +34,7 @@
 
 #include "scenes/hid_scene.h"
 
-#define HID_BT_KEYS_STORAGE_NAME ".bt_hid.keys"
+#define HID_BT_KEYS_STORAGE_NAME ".bt_hid_remote.keys"
 
 typedef struct Hid Hid;
 
